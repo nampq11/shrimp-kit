@@ -2,11 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.1] (2026-03-12)
+
 ### Added
 
 - **Azure OpenAI Provider** (`AzureOpenAIProvider`, `createAzureOpenAIProvider`) — Built-in adapter for Microsoft Azure's OpenAI service. Maps Azure chat completions API to provider-agnostic `LLMProvider` interface with request/response normalization, tool-use support, and stop-reason translation.
 
-## 0.1.0 (2026-03-12)
+## [0.1.0] (2026-03-12)
 
 Initial release. All 10 modules implemented with full test coverage (113 tests).
 
