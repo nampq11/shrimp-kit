@@ -275,3 +275,23 @@ Central dispatcher routing work into named lanes.
 - `LANE_MAIN = 'main'` — user message processing
 - `LANE_CRON = 'cron'` — scheduled tasks
 - `LANE_HEARTBEAT = 'heartbeat'` — proactive checks
+
+## s11: Workspace (`src/workspace.ts`)
+
+Central coordinator for agent state, config, and memory. A workspace is a `.shrimp` directory containing config files, sessions, memory, skills, and delivery queues.
+
+### Workspace
+
+- `constructor({ rootDir })` — root directory for the project
+- `init(defaultAgentId?)` — creates `.shrimp/` structure: sessions, memory, skills, delivery
+- `readMetadata()` / `writeMetadata(metadata)` — workspace.json (version, createdAt, defaultAgentId)
+- `createSessionStore(agentId?)` — SessionStore for this workspace
+- `createMemoryStore()` — MemoryStore for this workspace
+- `createBootstrapLoader()` — BootstrapLoader for config files
+- `createSkillsManager()` — SkillsManager for skills discovery
+- `createDeliveryQueue()` — DeliveryQueue for message delivery
+- `static discover(startDir): Workspace | null` — walk up directory tree to find `.shrimp/workspace.json`
+
+### Properties
+
+- `rootDir`, `shrimpDir`, `configDir`, `sessionsDir`, `memoryDir`, `skillsDir`, `deliveryDir`
