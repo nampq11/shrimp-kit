@@ -65,7 +65,7 @@ ShrimpKit/
   packages/
     shrimp-agent/          TypeScript SDK
       src/                 10 modules + types + barrel export
-      __tests__/           113 tests across 10 test files
+      tests/           113 tests across 10 test files
       package.json
       tsconfig.json
   docs/                    Original Python teaching material

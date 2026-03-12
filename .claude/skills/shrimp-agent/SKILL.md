@@ -34,7 +34,7 @@ s01 --> s02 --> s03 --> s04 --> s05
                 s09 ----------> s10
 ```
 
-All source lives in `packages/shrimp-agent/src/`. Tests in `packages/shrimp-agent/__tests__/`. Barrel export via `src/index.ts`.
+All source lives in `packages/shrimp-agent/src/`. Tests in `packages/shrimp-agent/tests/`. Barrel export via `src/index.ts`.
 
 ## Key Design Decisions
 
@@ -77,7 +77,7 @@ The project uses `"module": "Node16"` in tsconfig. All local imports must use `.
 2. Import shared types from `./types.js`
 3. Export public classes/functions/types
 4. Add re-exports to `src/index.ts` in a labeled section
-5. Create `__tests__/my-module.test.ts` with `import { describe, it, expect } from 'vitest'`
+5. Create `tests/my-module.test.ts` with `import { describe, it, expect } from 'vitest'`
 6. Run `npx vitest run` and `npx tsc --noEmit`
 
 ### Adding a New Tool
@@ -103,7 +103,7 @@ Pass `registry.getDefinitions()` and `registry.getHandlers()` to `AgentLoop`.
 
 ### Writing Tests
 
-- Test file pattern: `__tests__/<module>.test.ts`
+- Test file pattern: `tests/<module>.test.ts`
 - Use `vitest` globals: `describe`, `it`, `expect`, `vi`, `beforeEach`, `afterEach`
 - Mock `LLMProvider` with `vi.fn()` returning `{ content: [...], stopReason: 'end_turn' }`
 - Use `fs.mkdtempSync` for tests that touch the filesystem, clean up in `afterEach`

@@ -81,6 +81,10 @@ export {
 } from './concurrency.js';
 export type { LaneStats } from './concurrency.js';
 
+// s11: Workspace
+export { Workspace } from './workspace.js';
+export type { WorkspaceOptions, WorkspaceMetadata } from './workspace.js';
+
 // Shared types
 export type {
   TextBlock,

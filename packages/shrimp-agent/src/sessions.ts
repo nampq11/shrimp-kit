@@ -26,6 +26,7 @@ export interface SessionMeta {
 export interface SessionStoreOptions {
   agentId?: string;
   baseDir: string;
+  sessionsRoot?: string;
 }
 
 export class SessionStore {
@@ -38,7 +39,8 @@ export class SessionStore {
 
   constructor(options: SessionStoreOptions) {
     this.agentId = options.agentId ?? 'default';
-    this.baseDir = path.join(options.baseDir, '.sessions', 'agents', this.agentId);
+    const root = options.sessionsRoot ?? path.join(options.baseDir, '.sessions');
+    this.baseDir = path.join(root, 'agents', this.agentId);
     this.sessionsDir = path.join(this.baseDir, 'sessions');
     this.indexPath = path.join(this.baseDir, 'sessions.json');
     fs.mkdirSync(this.sessionsDir, { recursive: true });
