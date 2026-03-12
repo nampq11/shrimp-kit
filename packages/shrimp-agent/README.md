@@ -159,6 +159,27 @@ await queue.enqueue(LANE_CRON, () => runScheduledTask());
 await queue.waitForAll();
 ```
 
+### Azure OpenAI
+
+```typescript
+import { AzureOpenAIProvider, AgentLoop } from '@nampham1106/shrimp-agent';
+
+const provider = new AzureOpenAIProvider({
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+  apiVersion: '2024-08-01-preview', // optional, defaults to latest
+});
+
+const loop = new AgentLoop({
+  provider,
+  model: 'gpt-4', // your Azure deployment name
+  systemPrompt: 'You are a helpful assistant.',
+});
+
+const result = await loop.run([{ role: 'user', content: 'Hi!' }]);
+console.log(result.text);
+```
+
 ## API
 
 The full `LLMProvider` interface you need to implement:
@@ -179,6 +200,10 @@ interface LLMProvider {
 ```
 
 All other types are exported from the package entry point.
+
+### Built-in Providers
+
+- **AzureOpenAIProvider** — Microsoft Azure's OpenAI service. Use `AzureOpenAIProvider` directly or with `createAzureOpenAIProvider()` factory.
 
 ## Development
 

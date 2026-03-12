@@ -85,6 +85,10 @@ export type { LaneStats } from './concurrency.js';
 export { Workspace } from './workspace.js';
 export type { WorkspaceOptions, WorkspaceMetadata } from './workspace.js';
 
+// Providers
+export { AzureOpenAIProvider, createAzureOpenAIProvider } from './providers/azure-openai.js';
+export type { AzureOpenAIConfig } from './providers/azure-openai.js';
+
 // Shared types
 export type {
   TextBlock,

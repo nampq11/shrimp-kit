@@ -31,6 +31,9 @@
   ],
   "author": "nampham1106",
   "license": "MIT",
+  "dependencies": {
+    "openai": "^4.67.3"
+  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "vitest": "^3.0.0",
