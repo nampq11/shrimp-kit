@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node.js
+node_modules/
+dist/
+
+# Environment
+.env
+
+# Sessions & runtime data
+docs/workspace/.sessions/
+docs/workspace/.agents/
+docs/workspace/memory/
+docs/workspace/cron/
+docs/workspace/delivery-queue/
+
+# OS
+.DS_Store
+Thumbs.db
+node_modules/
