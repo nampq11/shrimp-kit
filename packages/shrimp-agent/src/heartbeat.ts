@@ -7,6 +7,7 @@
  */
 
 import type { LLMProvider, CronJobDefinition } from './types.js';
+import { extractText } from './agent-loop.js';
 
 // ---------------------------------------------------------------------------
 // HeartbeatRunner
@@ -84,11 +85,7 @@ export class HeartbeatRunner {
         system: sysPrompt,
         messages: [{ role: 'user', content: instructions }],
       });
-      const text = response.content
-        .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-        .map((b) => b.text)
-        .join('');
-      return this.parseResponse(text);
+      return this.parseResponse(extractText(response.content));
     } catch (err) {
       return `[heartbeat error: ${err}]`;
     } finally {
@@ -226,11 +223,7 @@ export class CronService {
         system: `You are performing a scheduled background task. Be concise. Current time: ${new Date().toISOString()}`,
         messages: [{ role: 'user', content: message }],
       });
-      const text = response.content
-        .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-        .map((b) => b.text)
-        .join('');
-
+      const text = extractText(response.content);
       job.consecutiveErrors = 0;
       job.lastRunAt = now;
       job.nextRunAt = now + job.everySeconds;

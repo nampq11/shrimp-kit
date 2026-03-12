@@ -8,7 +8,7 @@
  */
 
 import type { AgentConfig, LLMProvider, Message, ToolDefinition } from './types.js';
-import { AgentLoop, extractText } from './agent-loop.js';
+import { AgentLoop } from './agent-loop.js';
 
 // ---------------------------------------------------------------------------
 // Agent ID Normalization

@@ -56,7 +56,6 @@ export class Workspace {
     }
   }
 
-  /** Read workspace metadata. */
   readMetadata(): WorkspaceMetadata {
     const metadataPath = path.join(this.shrimpDir, 'workspace.json');
     try {
@@ -73,38 +72,32 @@ export class Workspace {
     };
   }
 
-  /** Write workspace metadata. */
   writeMetadata(metadata: WorkspaceMetadata): void {
     const metadataPath = path.join(this.shrimpDir, 'workspace.json');
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf-8');
   }
 
-  /** Get path to shrimp directory (same as configDir). */
   get configDir(): string {
     return this.shrimpDir;
   }
 
-  /** Get path to sessions directory. */
   get sessionsDir(): string {
     return path.join(this.shrimpDir, 'sessions');
   }
 
-  /** Get path to memory directory. */
   get memoryDir(): string {
     return path.join(this.shrimpDir, 'memory');
   }
 
-  /** Get path to skills directory. */
   get skillsDir(): string {
     return path.join(this.shrimpDir, 'skills');
   }
 
-  /** Get path to delivery queue directory. */
   get deliveryDir(): string {
     return path.join(this.shrimpDir, 'delivery');
   }
 
-  /** Create a SessionStore for the given agent (defaults to workspace default). */
+  /** Defaults to the workspace's defaultAgentId when agentId is omitted. */
   createSessionStore(agentId?: string): SessionStore {
     return new SessionStore({
       agentId: agentId ?? this.readMetadata().defaultAgentId,
@@ -113,22 +106,18 @@ export class Workspace {
     });
   }
 
-  /** Create a MemoryStore for this workspace. */
   createMemoryStore(): MemoryStore {
     return new MemoryStore(this.shrimpDir);
   }
 
-  /** Create a BootstrapLoader for this workspace. */
   createBootstrapLoader(): BootstrapLoader {
     return new BootstrapLoader(this.shrimpDir);
   }
 
-  /** Create a SkillsManager for this workspace. */
   createSkillsManager(): SkillsManager {
     return new SkillsManager(this.shrimpDir);
   }
 
-  /** Create a DeliveryQueue for this workspace. */
   createDeliveryQueue(): DeliveryQueue {
     return new DeliveryQueue(this.deliveryDir);
   }

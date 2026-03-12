@@ -237,29 +237,26 @@ export class ResilienceRunner {
       }
     }
 
-    // Fallback models
-    if (this.fallbackModels.length > 0) {
-      for (const fallbackModel of this.fallbackModels) {
+    for (const fallbackModel of this.fallbackModels) {
       const profile = this.profileManager.selectProfile();
       if (!profile) {
         for (const p of this.profileManager.profiles) {
           p.cooldownUntil = 0;
         }
       }
-        const fbProfile = this.profileManager.selectProfile();
-        if (!fbProfile) continue;
+      const fbProfile = this.profileManager.selectProfile();
+      if (!fbProfile) continue;
 
-        const provider = this.providerFactory(fbProfile);
-        try {
-          this.stats.totalAttempts++;
-          const result = await this.runAttempt(provider, fallbackModel, system, currentMessages);
-          this.profileManager.markSuccess(fbProfile);
-          this.stats.totalSuccesses++;
-          return result;
-        } catch {
-          this.stats.totalFailures++;
-          continue;
-        }
+      const provider = this.providerFactory(fbProfile);
+      try {
+        this.stats.totalAttempts++;
+        const result = await this.runAttempt(provider, fallbackModel, system, currentMessages);
+        this.profileManager.markSuccess(fbProfile);
+        this.stats.totalSuccesses++;
+        return result;
+      } catch {
+        this.stats.totalFailures++;
+        continue;
       }
     }
 

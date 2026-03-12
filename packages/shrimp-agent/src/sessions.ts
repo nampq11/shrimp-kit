@@ -10,7 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Message, ContentBlock, LLMProvider } from './types.js';
+import type { Message, ContentBlock, TextBlock, LLMProvider, LLMResponse } from './types.js';
 
 // ---------------------------------------------------------------------------
 // SessionStore — JSONL-based conversation persistence
@@ -286,7 +286,7 @@ export class ContextGuard {
       });
 
       const summaryText = summaryResp.content
-        .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+        .filter((b): b is TextBlock => b.type === 'text')
         .map((b) => b.text)
         .join('');
 
@@ -316,7 +316,7 @@ export class ContextGuard {
     messages: Message[],
     tools?: Array<{ name: string; description: string; input_schema: Record<string, unknown> }>,
     maxRetries = 2,
-  ): Promise<{ response: import('./types.js').LLMResponse; messages: Message[] }> {
+  ): Promise<{ response: LLMResponse; messages: Message[] }> {
     let current = messages;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

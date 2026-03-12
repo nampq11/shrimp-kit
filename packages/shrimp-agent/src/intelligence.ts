@@ -188,6 +188,16 @@ export interface MemorySearchResult {
   snippet: string;
 }
 
+interface TextChunk {
+  path: string;
+  text: string;
+}
+
+interface ScoredChunk {
+  chunk: TextChunk;
+  score: number;
+}
+
 export class MemoryStore {
   private memoryDir: string;
   private evergreenPath: string;
@@ -219,8 +229,8 @@ export class MemoryStore {
     }
   }
 
-  private loadAllChunks(): Array<{ path: string; text: string }> {
-    const chunks: Array<{ path: string; text: string }> = [];
+  private loadAllChunks(): TextChunk[] {
+    const chunks: TextChunk[] = [];
     const evergreen = this.loadEvergreen();
     if (evergreen) {
       for (const para of evergreen.split('\n\n')) {
@@ -254,61 +264,51 @@ export class MemoryStore {
     return matches.filter((t) => t.length > 1 || (t >= '\u4e00' && t <= '\u9fff'));
   }
 
-  searchMemory(query: string, topK = 5): MemorySearchResult[] {
-    return this.keywordSearch(query, topK);
-  }
-
-  private keywordSearch(query: string, topK: number): MemorySearchResult[] {
-    const chunks = this.loadAllChunks();
-    if (chunks.length === 0) return [];
-    const queryTokens = MemoryStore.tokenize(query);
-    if (queryTokens.length === 0) return [];
-
-    const chunkTokens = chunks.map((c) => MemoryStore.tokenize(c.text));
-    const n = chunks.length;
-
+  private static computeDocFrequency(allTokens: string[][]): Map<string, number> {
     const df = new Map<string, number>();
-    for (const tokens of chunkTokens) {
+    for (const tokens of allTokens) {
       for (const t of new Set(tokens)) {
         df.set(t, (df.get(t) ?? 0) + 1);
       }
     }
+    return df;
+  }
 
-    const tfidf = (tokens: string[]): Map<string, number> => {
-      const tf = new Map<string, number>();
-      for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
-      const result = new Map<string, number>();
-      for (const [t, c] of tf) {
-        result.set(t, c * (Math.log((n + 1) / ((df.get(t) ?? 0) + 1)) + 1));
-      }
-      return result;
-    };
-
-    const cosine = (a: Map<string, number>, b: Map<string, number>): number => {
-      let dot = 0, na = 0, nb = 0;
-      for (const [k, v] of a) {
-        na += v * v;
-        if (b.has(k)) dot += v * b.get(k)!;
-      }
-      for (const v of b.values()) nb += v * v;
-      const denom = Math.sqrt(na) * Math.sqrt(nb);
-      return denom > 0 ? dot / denom : 0;
-    };
-
-    const qvec = tfidf(queryTokens);
-    const scored: MemorySearchResult[] = [];
-    for (let i = 0; i < chunkTokens.length; i++) {
-      if (chunkTokens[i].length === 0) continue;
-      const score = cosine(qvec, tfidf(chunkTokens[i]));
-      if (score > 0) {
-        const snippet = chunks[i].text.length > 200
-          ? chunks[i].text.slice(0, 200) + '...'
-          : chunks[i].text;
-        scored.push({ path: chunks[i].path, score: Math.round(score * 10000) / 10000, snippet });
-      }
+  private static computeTfidf(tokens: string[], df: Map<string, number>, n: number): Map<string, number> {
+    const tf = new Map<string, number>();
+    for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
+    const result = new Map<string, number>();
+    for (const [t, c] of tf) {
+      result.set(t, c * (Math.log((n + 1) / ((df.get(t) ?? 0) + 1)) + 1));
     }
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, topK);
+    return result;
+  }
+
+  private static cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+    let dot = 0, na = 0, nb = 0;
+    for (const [k, v] of a) {
+      na += v * v;
+      if (b.has(k)) dot += v * b.get(k)!;
+    }
+    for (const v of b.values()) nb += v * v;
+    const denom = Math.sqrt(na) * Math.sqrt(nb);
+    return denom > 0 ? dot / denom : 0;
+  }
+
+  private static toSearchResult(chunk: TextChunk, score: number): MemorySearchResult {
+    return {
+      path: chunk.path,
+      score: Math.round(score * 10000) / 10000,
+      snippet: chunk.text.length > 200 ? chunk.text.slice(0, 200) + '...' : chunk.text,
+    };
+  }
+
+  searchMemory(query: string, topK = 5): MemorySearchResult[] {
+    const chunks = this.loadAllChunks();
+    if (chunks.length === 0) return [];
+    return this.keywordSearchRaw(query, chunks, topK).map(({ chunk, score }) =>
+      MemoryStore.toSearchResult(chunk, score),
+    );
   }
 
   /**
@@ -324,45 +324,22 @@ export class MemoryStore {
     merged = this.temporalDecay(merged);
     merged = this.mmrRerank(merged);
 
-    return merged.slice(0, topK).map((r) => ({
-      path: r.chunk.path,
-      score: Math.round(r.score * 10000) / 10000,
-      snippet: r.chunk.text.length > 200 ? r.chunk.text.slice(0, 200) + '...' : r.chunk.text,
-    }));
+    return merged.slice(0, topK).map(({ chunk, score }) =>
+      MemoryStore.toSearchResult(chunk, score),
+    );
   }
 
-  private keywordSearchRaw(
-    query: string,
-    chunks: Array<{ path: string; text: string }>,
-    topK: number,
-  ): Array<{ chunk: { path: string; text: string }; score: number }> {
+  private keywordSearchRaw(query: string, chunks: TextChunk[], topK: number): ScoredChunk[] {
     const queryTokens = MemoryStore.tokenize(query);
     if (queryTokens.length === 0) return [];
     const chunkTokens = chunks.map((c) => MemoryStore.tokenize(c.text));
+    const df = MemoryStore.computeDocFrequency(chunkTokens);
     const n = chunks.length;
-    const df = new Map<string, number>();
-    for (const tokens of chunkTokens) {
-      for (const t of new Set(tokens)) df.set(t, (df.get(t) ?? 0) + 1);
-    }
-    const tfidf = (tokens: string[]): Map<string, number> => {
-      const tf = new Map<string, number>();
-      for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
-      const result = new Map<string, number>();
-      for (const [t, c] of tf) result.set(t, c * (Math.log((n + 1) / ((df.get(t) ?? 0) + 1)) + 1));
-      return result;
-    };
-    const cosine = (a: Map<string, number>, b: Map<string, number>): number => {
-      let dot = 0, na = 0, nb = 0;
-      for (const [k, v] of a) { na += v * v; if (b.has(k)) dot += v * b.get(k)!; }
-      for (const v of b.values()) nb += v * v;
-      const d = Math.sqrt(na) * Math.sqrt(nb);
-      return d > 0 ? dot / d : 0;
-    };
-    const qvec = tfidf(queryTokens);
-    const scored: Array<{ chunk: { path: string; text: string }; score: number }> = [];
+    const qvec = MemoryStore.computeTfidf(queryTokens, df, n);
+    const scored: ScoredChunk[] = [];
     for (let i = 0; i < chunkTokens.length; i++) {
       if (chunkTokens[i].length === 0) continue;
-      const score = cosine(qvec, tfidf(chunkTokens[i]));
+      const score = MemoryStore.cosineSimilarity(qvec, MemoryStore.computeTfidf(chunkTokens[i], df, n));
       if (score > 0) scored.push({ chunk: chunks[i], score });
     }
     scored.sort((a, b) => b.score - a.score);
@@ -384,13 +361,9 @@ export class MemoryStore {
     return vec.map((v: number) => v / norm);
   }
 
-  private vectorSearch(
-    query: string,
-    chunks: Array<{ path: string; text: string }>,
-    topK: number,
-  ): Array<{ chunk: { path: string; text: string }; score: number }> {
+  private vectorSearch(query: string, chunks: TextChunk[], topK: number): ScoredChunk[] {
     const qvec = MemoryStore.hashVector(query);
-    const scored: Array<{ chunk: { path: string; text: string }; score: number }> = [];
+    const scored: ScoredChunk[] = [];
     for (const chunk of chunks) {
       const cvec = MemoryStore.hashVector(chunk.text);
       let dot = 0, na = 0, nb = 0;
@@ -408,12 +381,12 @@ export class MemoryStore {
   }
 
   private mergeHybridResults(
-    vectorResults: Array<{ chunk: { path: string; text: string }; score: number }>,
-    keywordResults: Array<{ chunk: { path: string; text: string }; score: number }>,
+    vectorResults: ScoredChunk[],
+    keywordResults: ScoredChunk[],
     vectorWeight = 0.7,
     textWeight = 0.3,
-  ): Array<{ chunk: { path: string; text: string }; score: number }> {
-    const merged = new Map<string, { chunk: { path: string; text: string }; score: number }>();
+  ): ScoredChunk[] {
+    const merged = new Map<string, ScoredChunk>();
     for (const r of vectorResults) {
       const key = r.chunk.text.slice(0, 100);
       merged.set(key, { chunk: r.chunk, score: r.score * vectorWeight });
@@ -432,10 +405,7 @@ export class MemoryStore {
     return result;
   }
 
-  private temporalDecay(
-    results: Array<{ chunk: { path: string; text: string }; score: number }>,
-    decayRate = 0.01,
-  ): Array<{ chunk: { path: string; text: string }; score: number }> {
+  private temporalDecay(results: ScoredChunk[], decayRate = 0.01): ScoredChunk[] {
     const now = Date.now();
     for (const r of results) {
       const dateMatch = r.chunk.path.match(/(\d{4}-\d{2}-\d{2})/);
@@ -448,10 +418,7 @@ export class MemoryStore {
     return results;
   }
 
-  private mmrRerank(
-    results: Array<{ chunk: { path: string; text: string }; score: number }>,
-    lambda = 0.7,
-  ): Array<{ chunk: { path: string; text: string }; score: number }> {
+  private mmrRerank(results: ScoredChunk[], lambda = 0.7): ScoredChunk[] {
     if (results.length <= 1) return results;
     const tokenized = results.map((r) => MemoryStore.tokenize(r.chunk.text));
     const selected: number[] = [];

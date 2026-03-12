@@ -14,6 +14,7 @@ import type {
   LLMResponse,
   Message,
   ContentBlock,
+  TextBlock,
   ToolDefinition,
   ToolHandler,
   ToolResultBlock,
@@ -38,7 +39,7 @@ export interface AgentLoopResult {
 
 export function extractText(content: ContentBlock[]): string {
   return content
-    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .filter((b): b is TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('');
 }

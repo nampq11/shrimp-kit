@@ -10,6 +10,7 @@
  *   CLI (stdin) --'    Agent Loop        '---- print(stdout)
  */
 
+import * as readline from 'node:readline';
 import type { InboundMessage, ChannelAccount } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -58,7 +59,7 @@ export class ChannelManager {
 export class CLIChannel extends Channel {
   readonly name = 'cli';
   readonly accountId = 'cli-local';
-  private readline: import('node:readline').Interface | null = null;
+  private rl: readline.Interface | null = null;
 
   async receive(): Promise<InboundMessage | null> {
     const text = await this.readLine();
@@ -82,23 +83,22 @@ export class CLIChannel extends Channel {
 
   private readLine(): Promise<string | null> {
     return new Promise((resolve) => {
-      if (!this.readline) {
-        const readline = require('node:readline');
-        this.readline = readline.createInterface({
+      if (!this.rl) {
+        this.rl = readline.createInterface({
           input: process.stdin,
           output: process.stdout,
         });
-        this.readline!.on('close', () => resolve(null));
+        this.rl.on('close', () => resolve(null));
       }
-      this.readline!.question('You > ', (answer: string) => {
+      this.rl.question('You > ', (answer: string) => {
         resolve(answer.trim() || null);
       });
     });
   }
 
   close(): void {
-    this.readline?.close();
-    this.readline = null;
+    this.rl?.close();
+    this.rl = null;
   }
 }
 
