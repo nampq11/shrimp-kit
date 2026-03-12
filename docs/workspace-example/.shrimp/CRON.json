@@ -1,0 +1,19 @@
+{
+  "jobs": [
+    {
+      "id": "health-check",
+      "name": "Package Health Check",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "every_seconds": 86400,
+        "anchor": "2026-03-12T00:00:00Z"
+      },
+      "payload": {
+        "kind": "agent_turn",
+        "message": "Check package health: review test coverage, type safety, and documentation consistency. Report only if issues need attention."
+      },
+      "delete_after_run": false
+    }
+  ]
+}
