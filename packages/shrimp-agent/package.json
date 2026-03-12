@@ -1,6 +1,6 @@
 {
   "name": "@nampham1106/shrimp-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AI Agent Gateway SDK — 10 progressive concepts from loop to production",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,6 +14,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
