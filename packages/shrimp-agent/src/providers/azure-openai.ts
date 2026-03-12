@@ -14,7 +14,7 @@ import type {
   ContentBlock,
   TextBlock,
   ToolUseBlock,
-  ToolDefinition,
+  ToolResultBlock,
 } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ export interface AzureOpenAIConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Response Normalization Helpers
+// Internal OpenAI message shape
 // ---------------------------------------------------------------------------
 
 interface AzureToolCall {
@@ -40,13 +40,11 @@ interface AzureToolCall {
   };
 }
 
-interface AzureContentPart {
-  type: 'text' | 'tool_use';
-  text?: string;
-  tool_use_id?: string;
-  tool_name?: string;
-  tool_input?: Record<string, unknown>;
-}
+type OpenAIMessage =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string | Array<{ type: string; [key: string]: unknown }> }
+  | { role: 'assistant'; content: string | null; tool_calls?: AzureToolCall[] }
+  | { role: 'tool'; tool_call_id: string; content: string };
 
 function normalizeStopReason(finishReason: string | null | undefined): string {
   if (!finishReason) return 'end_turn';
@@ -103,46 +101,61 @@ function normalizeAzureResponse(
 // Message Conversion
 // ---------------------------------------------------------------------------
 
-function convertToAzureMessage(
-  msg: Message,
-): {
-  role: 'user' | 'assistant' | 'system';
-  content: string | Array<{ type: string; [key: string]: unknown }>;
-} {
+/**
+ * Converts a provider-agnostic Message to one or more OpenAI-format messages.
+ *
+ * Tool results (role=user, content=ToolResultBlock[]) become individual
+ * role='tool' messages. Assistant tool-use blocks become tool_calls.
+ */
+function convertToOpenAIMessages(msg: Message): OpenAIMessage[] {
   if (typeof msg.content === 'string') {
-    return {
-      role: msg.role,
-      content: msg.content,
-    };
+    return [{ role: msg.role, content: msg.content }];
   }
 
-  const parts: Array<{ type: string; [key: string]: unknown }> = [];
-  for (const block of msg.content) {
-    if (block.type === 'text') {
-      parts.push({
-        type: 'text',
-        text: block.text,
-      });
-    } else if (block.type === 'tool_result') {
-      parts.push({
-        type: 'tool_result',
-        tool_use_id: block.tool_use_id,
-        content: block.content,
-      });
-    } else if (block.type === 'tool_use') {
-      parts.push({
-        type: 'tool_use',
-        id: block.id,
-        name: block.name,
-        input: block.input,
-      });
-    }
+  // User message carrying tool results → one role='tool' message per result
+  const toolResults = msg.content.filter((b): b is ToolResultBlock => b.type === 'tool_result');
+  if (toolResults.length > 0) {
+    return toolResults.map((b) => ({
+      role: 'tool' as const,
+      tool_call_id: b.tool_use_id,
+      content: typeof b.content === 'string' ? b.content : JSON.stringify(b.content),
+    }));
   }
 
-  return {
-    role: msg.role,
-    content: parts.length > 0 ? parts : '',
-  };
+  // Assistant message with tool calls → tool_calls array
+  const toolUseBlocks = msg.content.filter((b): b is ToolUseBlock => b.type === 'tool_use');
+  if (msg.role === 'assistant' && toolUseBlocks.length > 0) {
+    const textContent =
+      msg.content
+        .filter((b): b is TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('') || null;
+
+    return [
+      {
+        role: 'assistant' as const,
+        content: textContent,
+        tool_calls: toolUseBlocks.map((b) => ({
+          id: b.id,
+          type: 'function' as const,
+          function: { name: b.name, arguments: JSON.stringify(b.input) },
+        })),
+      },
+    ];
+  }
+
+  // Regular text message
+  const textParts = msg.content
+    .filter((b): b is TextBlock => b.type === 'text')
+    .map((b) => ({ type: 'text' as const, text: b.text }));
+
+  const content: string | Array<{ type: string; [key: string]: unknown }> =
+    textParts.length > 0 ? textParts : '';
+
+  if (msg.role === 'assistant') {
+    return [{ role: 'assistant' as const, content: content as string | null }];
+  }
+  return [{ role: 'user' as const, content }];
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +170,7 @@ export class AzureOpenAIProvider implements LLMProvider {
     this.apiVersion = config.apiVersion ?? '2024-08-01-preview';
     this.client = new AzureOpenAI({
       apiKey: config.apiKey,
-      baseURL: config.endpoint,
+      endpoint: config.endpoint,
       apiVersion: this.apiVersion,
       defaultHeaders: {
         'User-Agent': 'shrimp-agent/0.1.0',
@@ -166,19 +179,10 @@ export class AzureOpenAIProvider implements LLMProvider {
   }
 
   async createMessage(params: CreateMessageParams): Promise<LLMResponse> {
-    const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string | unknown }> = [
-      {
-        role: 'system',
-        content: params.system,
-      },
-    ];
+    const messages: OpenAIMessage[] = [{ role: 'system', content: params.system }];
 
     for (const msg of params.messages) {
-      const converted = convertToAzureMessage(msg);
-      messages.push({
-        role: converted.role as 'user' | 'assistant' | 'system',
-        content: converted.content,
-      });
+      messages.push(...convertToOpenAIMessages(msg));
     }
 
     const tools = params.tools
@@ -195,9 +199,8 @@ export class AzureOpenAIProvider implements LLMProvider {
     const response = await this.client.chat.completions.create({
       model: params.model,
       messages: messages as Parameters<typeof this.client.chat.completions.create>[0]['messages'],
-      max_tokens: params.maxTokens,
+      max_completion_tokens: params.maxTokens,
       tools,
-      temperature: 1,
     });
 
     const choice = response.choices[0];
