@@ -1,124 +1,151 @@
-# Developement Rules
+# CLAUDE.md
 
-## First Message
-if the user did not give you a concrete task in their first message, read README.md, then ask which module(s) to work on. Based on the answer, read the relevant README.md files in parallel.
-- packages/shrimp-agent/README.md
+ShrimpKit: AI Agent Gateway — from tutorial to production SDK. Monorepo with Python teaching sessions (`docs/`) and TypeScript SDK (`packages/shrimp-agent/`).
 
-## Code Quality
-- No `any` types unless absolutely necessary.
-- Check node_modules for external API type definitions instead of guessing.
-- **NEVER use inline imports** - no `await import("./foo.js")`, no `import("pkg").type` in type positions, no dynamic imports for types. Always use standard top-level imports.
-- Always ask before removing functionality or code that appears to be intentional
-- Never hardcode key checks with, eg. `matchesKey(KeyData, "ctrl+x")`. All keybindings must be configurable. Add default matching object (`DEFAULT_EDITING_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
+## Project map
 
-## Commands
-- After code changes (not documentation changes): `npm run check` (get full output, no tail). fix all errors, warnings and infos before committing.
-- Note: `npm run check` does not run tests.
-- NEVER run: `npm run dev`, `npm run build`, `npm test`
-- ONLY run specific tests if user instructs: `npx tsx ../../node_modules/vitest/dist/cli.js --run test/specific.test.ts`
-- Run tests from package root, not repo root.
-- When writing tests, run them, indentify issues in either the test or implementation, and iterate until fixed.
-- NEVER commit unless user asks
+- `docs/` - Python teaching sessions: 10 progressive concepts from agent loop to production
+- `packages/shrimp-agent/` - TypeScript SDK implementing all 10 concepts as reusable library
+  - `src/modules/` - 10 modules: agent-loop, tool-use, sessions, channels, gateway, intelligence, heartbeat, delivery, resilience, concurrency
+  - `tests/` - 113 tests across 10 test files
+  - `package.json`, `tsconfig.json`
 
-## GitHub Issues
-When reading issues:
-- Always read all comments on the issue
-- Use this command to get everything in one call:
+<important if="you need to run commands to build, test, lint, or check code">
+
+Run from `packages/shrimp-agent/` root (not repo root).
+
+| Command | What it does |
+|---|---|
+| `npm run check` | Type check + lint — run after code changes, fix all errors before committing |
+| `npx tsx ../../node_modules/vitest/dist/cli.js --run test/specific.test.ts` | Run specific test file only |
+| `npm run build` | Compile to dist/ |
+
+Never run: `npm run dev`, `npm test` (full suite), `npm run build` (unless publishing)
+</important>
+
+<important if="the user did not give you a concrete task in their first message">
+
+1. Read README.md to understand project structure
+2. Ask which module(s) to work on
+3. Based on answer, read relevant README.md files in parallel:
+   - `packages/shrimp-agent/README.md`
+</important>
+
+<important if="you are writing or modifying TypeScript code">
+
+- No `any` types unless absolutely necessary
+- Check `node_modules` for external API type definitions instead of guessing
+- **NEVER use inline imports** — no `await import("./foo.js")`, no `import("pkg").type` in type positions. Always use standard top-level imports
+</important>
+
+<important if="you are removing or refactoring code">
+
+Always ask before removing functionality or code that appears to be intentional
+</important>
+
+<important if="you are working with keybindings or keyboard shortcuts">
+
+Never hardcode key checks (e.g., `matchesKey(KeyData, "ctrl+x")`). All keybindings must be configurable. Add default matching object (`DEFAULT_EDITING_KEYBINDINGS` or `DEFAULT_APP_KEYBINDINGS`)
+</important>
+
+<important if="you are reading GitHub issues">
+
+Always read all comments on the issue. Use this command to get everything in one call:
 ```bash
-gh issue view <number> --json title, body, comments, labels, state
+gh issue view <number> --json title,body,comments,labels,state
 ```
+</important>
 
-When creating issues:
-- Add `pkg:*` labels to indicate which package(s) the issue affectts
-    - Available labels: `pkg:shrimp-agent`
-- If an issue spans multiple packages, add all relevant labels
+<important if="you are creating GitHub issues">
 
-When posting issue/PR comments:
+Add `pkg:*` labels to indicate which package(s) the issue affects:
+- `pkg:shrimp-agent` - for SDK changes
+
+If an issue spans multiple packages, add all relevant labels
+</important>
+
+<important if="you are posting GitHub issue or PR comments">
+
 - Write the full comment to a temp file and use `gh issue comment --body-file` or `gh pr comment --body-file`
 - Never pass multi-line markdown directly via `--body` in shell commands
-- Preview the axact comment text before posting
-- Post exactly one final comment unless the user explicitly asks for multiple comments
+- Preview the exact comment text before posting
+- Post exactly one final comment unless user explicitly asks for multiple
 - If a comment is malformed, delete it immediately, then post one corrected comment
-- Keep comments concise, technical, and in the user's tone
+- Keep comments concise, technical, and direct
+</important>
 
-When closing issues via commit:
-- Include `fixes #<number>` or `closes #<number>` in the commit message
-- This automatically closes the issue when the commit is merged
+<important if="you are closing issues via commit">
 
-## PR Workflow
-- Analyze PRs without pulling locally first
-- If the user approves: create a feature branch, pull PR, rebase on main, apply adjustments, commit, merge into main, push, close PR, and leave a comment in the user's tone
-- You never open PRs yourself. We work in feature branches until everything is according to the user's requirements, then merge into main, and push.
+Include `fixes #<number>` or `closes #<number>` in the commit message. This automatically closes the issue when merged.
+</important>
 
-## Tools
-- GitHub CLI for issues/PRs
-- Add package labels to issues/PRs: pkg:shrimp-agent
+<important if="you are writing Git commit messages">
 
-## Style
-- Keep answers short and concise
-- No emojis in commits, issues, PR comments, or code
+- No emojis
 - No fluff or cheerful filler text
 - Technical prose only, be kind but direct (e.g., "Thanks @user" not "Thanks so much @user!")
+</important>
 
-## Changelog
+<important if="you are analyzing or working on a PR">
+
+1. Analyze PRs without pulling locally first
+2. If user approves: create feature branch, pull PR, rebase on main, apply adjustments, commit, merge into main, push, close PR, leave a comment
+3. You never open PRs yourself — work in feature branches until ready, then merge to main
+</important>
+
+<important if="you are updating a package CHANGELOG.md">
+
 Location: `packages/*/CHANGELOG.md` (each package has its own)
 
-### Format
-Use the sections under `## [Unreleased]`:
+Use sections under `## [Unreleased]`:
 - `### Breaking Changes` - API changes requiring migration
 - `### Added` - New features
 - `### Changed` - Changes to existing functionality
 - `### Fixed` - Bug fixes
 - `### Removed` - Removed features
 
-### Rules
-- Before adding entries, read the full `[Unreleased]` section to see which subsections already exist
-- New entries ALWAYS go under `### [Unreleased]` section
-- Append to existing subsections (e.g `### Fixed`), do not create duplicates
+Rules:
+- Read full `[Unreleased]` section before adding entries
+- New entries ALWAYS go under `### [Unreleased]`
+- Append to existing subsections, do not create duplicates
 - NEVER modify already-released version sections (e.g., `## [0.12.2]`)
-- Each version section is immutable once released
+</important>
 
-## **CRITICAL** Tool Usage Rules **CRITICAL**
-- NEVER use sed/cat to read a file or a range a file. Always use the read tool(use offset + limit ranged reads).
-- You MUST read every file you modify in full before editing.
+<important if="you are working in a multi-agent environment with parallel development">
 
-## **CRITICAL** Git Rules for Parallel Agents **CRITICAL**
+Multiple agents may work on different files in the same worktree simultaneously.
 
-Multiple agents may work on different files in the same worktree simultaneously. You MUST follow these rules:
-
-### Commiting
-- **ONLY commit files YOU changed in THIS session**
-- ALWAYS include `fixes #<number>` or `closes #<number>` in the commit message when there is a related issue or PR
-- NEVER use `git add -A` or `git add .` - these sweep up changes from other agents
+**Committing:**
+- ONLY commit files YOU changed in THIS session
+- Include `fixes #<number>` or `closes #<number>` in commit message when applicable
+- NEVER use `git add -A` or `git add .` — these sweep up other agents' changes
 - ALWAYS use `git add <specific-file-paths>` listing only files you modified
-- Before committing, run `git status` and verify you are only staging YOUR files
-- Track which files you created/modified/deleted during the session
+- Run `git status` before committing to verify you are only staging YOUR files
 
-### Forbidden GIt Operations
-These commands can destroy other agents' work:
+**Forbidden Git Operations** (destroy other agents' work):
 - `git reset --hard` - destroys uncommitted changes
 - `git checkout .` - destroys uncommitted changes
 - `git clean -fd` - deletes untracked files
-- `git stash` - stashes ALL changes including other agent's work
-- `git add -A` / `git add .` - stages other agent's uncommitted work
-- `git commit --no-verify` - bypasses required checks and is never allowed
+- `git stash` - stashes ALL changes including other agents' work
+- `git add -A` / `git add .` - stages other agents' uncommitted work
+- `git commit --no-verify` - bypasses required checks, never allowed
 
-### Safe Workflow
+**Safe Workflow:**
 ```bash
-# 1. Check status first
-git status
-
-# 2. Add ONLY your specific files
-git add packages/shrimp-agent/src/modules/agent-loop.ts
-
-# 3. Commit
-git commit -m "feat: add agent loop"
-
-# 4. Push (pull --rebase if needed, but NEVER reset/checkout)
-git pull --rebase && git push
+git status                          # 1. Check status first
+git add packages/shrimp-agent/src/modules/agent-loop.ts  # 2. Add only your specific files
+git commit -m "feat: add agent loop"  # 3. Commit
+git pull --rebase && git push       # 4. Pull rebase if needed, then push
 ```
 
-### If Rebase Conflicts Occur
+**If Rebase Conflicts Occur:**
 - Resolve conflicts in YOUR files only
 - If conflict is in a file you don't modify, abort and ask the user
 - NEVER force push
+</important>
+
+<important if="you are reading files to understand code before editing">
+
+- NEVER use sed/cat to read files or file ranges. Always use the Read tool (use offset + limit for ranged reads)
+- You MUST read every file you modify in full before editing
+</important>
